@@ -448,7 +448,34 @@
             </div>
             <div id="kasList" style="flex:1;overflow-y:auto;padding:0 16px 80px;display:flex;flex-direction:column;gap:10px"></div>
         </div>
-
+<!-- MODAL FORM KAS KELUAR -->
+<div class="modal-ov" id="kasFormModal">
+    <div class="modal">
+        <div class="m-head">
+            <span><i class="fas fa-money-bill-transfer" style="color:var(--err);margin-right:8px"></i>Catat Kas Keluar</span>
+            <button class="m-close" onclick="P.closeKasForm()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="m-body">
+            <input type="hidden" id="kasId">
+            <div class="fg">
+                <label>Tanggal</label>
+                <input type="date" id="kasDate" class="inp">
+            </div>
+            <div class="fg">
+                <label>Jumlah Dana (Rp)</label>
+                <input type="number" id="kasAmount" class="inp" placeholder="0" min="0" style="font-weight:700">
+            </div>
+            <div class="fg">
+                <label>Keterangan</label>
+                <textarea id="kasDesc" class="inp" rows="3" placeholder="Contoh: Beli gas, bayar listrik, dll"></textarea>
+            </div>
+        </div>
+        <div class="m-foot">
+            <button class="btn-o" style="flex:1" onclick="P.closeKasForm()">Batal</button>
+            <button class="btn-p" style="flex:2" onclick="P.saveKas()"><i class="fas fa-save" style="margin-right:6px"></i>Simpan</button>
+        </div>
+    </div>
+</div>
         <!-- PENGATURAN -->
         <div id="pg-set" class="page">
             <div style="padding:16px 16px 6px"><h2 style="font-size:1.2rem;font-weight:700">Pengaturan</h2></div>
@@ -512,7 +539,7 @@
                 <div class="bnav-dd-item" data-p="po" onclick="event.stopPropagation(); P.nav('po')"><i class="fas fa-truck-ramp-box"></i> Purchase Order</div>
                 <div class="bnav-dd-item" data-p="retur" onclick="event.stopPropagation(); P.nav('retur')"><i class="fas fa-rotate-left"></i> Retur Barang</div>
                 <div class="bnav-dd-item" data-p="incaso" onclick="event.stopPropagation(); P.nav('incaso')"><i class="fas fa-file-invoice-dollar"></i> Tagihan</div>
-                <div class="bnav-dd-item" data-p="kas" onclick="event.stopPropagation(); P.nav('kas')"><i class="fas fa-wallet"></i> Buku Kas</div>
+                <div class="bnav-dd-item" data-p="kas" onclick="event.stopPropagation(); P.nav('kas')"><i class="fas fa-wallet"></i>Kas Masuk - Keluar</div>
                 <div class="bnav-dd-item" data-p="omset" onclick="event.stopPropagation(); P.nav('omset')"><i class="fas fa-calculator"></i> Catatan Omset Manual</div>
                 <div class="bnav-dd-item" data-p="pelanggan" onclick="event.stopPropagation(); P.nav('pelanggan')"><i class="fas fa-users"></i> Pelanggan</div>
                 <div class="bnav-dd-item" data-p="supplier" onclick="event.stopPropagation(); P.nav('supplier')"><i class="fas fa-truck"></i> Supplier</div>
@@ -1953,13 +1980,110 @@ openOmsetStat(){
     delPO(poId){ if(!confirm('Yakin ingin menghapus pesanan ini secara permanen?')) return; this.purchaseOrders = this.purchaseOrders.filter(p => p.id !== poId); this.syncToSheet('delete', 'po', {id: poId}); this.save(); this.closePODetail(); this.renderPOList(); this.toast('Pesanan berhasil dihapus', 'inf'); },
 
     // BUKU KAS
-    renderKas(){ const totalBalance = this.cashRecords.reduce((s, r) => s + (r.kasAkhir||0), 0); document.getElementById('kasTotalBalance').textContent = this.fRp(totalBalance); const l = document.getElementById('kasList'); if(!this.cashRecords.length){ l.innerHTML='<div class="empty"><i class="fas fa-wallet"></i><p>Belum ada catatan kas</p></div>'; return; } l.innerHTML = this.cashRecords.map((r, idx) => { const isNegatif = r.kasAkhir < 0; const typeLabel = r.kasMasuk > 0 ? '<span style="color:var(--ok)">MASUK</span>' : '<span style="color:var(--err)">KELUAR</span>'; return `<div class="cust-card"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:.7rem;color:var(--tx2)">${new Date(r.date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})} • ${typeLabel}</div><div style="font-weight:600;font-size:.9rem;margin-top:2px">${r.desc}</div></div><div style="text-align:right"><div style="font-weight:800;color:${isNegatif ? 'var(--err)' : 'var(--pri)'};font-size:1rem">${this.fRp(r.kasAkhir)}</div></div></div><div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);align-items:center"><div style="font-size:.75rem;color:var(--tx2)">Masuk: ${this.fRp(r.kasMasuk)} | Kembang: ${this.fRp(r.pengembangan)} (${r.pctPengembangan}%) | Lain: ${this.fRp(r.lainLain)}</div><button onclick="P.delKas(${idx})" style="padding:4px 8px;border-radius:6px;border:none;background:var(--err);cursor:pointer;color:#fff;font-size:.7rem"><i class="fas fa-trash"></i></button></div></div>`; }).join(''); },
-    openKasForm(){ document.getElementById('kasDate').value = new Date().toISOString().slice(0,10); document.getElementById('kasDesc').value = ''; document.getElementById('kasIn').value = ''; document.getElementById('kasDevPctInput').value = ''; document.getElementById('kasOutOther').value = ''; document.getElementById('kasOutDev').value = ''; document.getElementById('kasEndVal').value = ''; document.getElementById('kasFormModal').classList.add('open'); },
-    closeKasForm(){ document.getElementById('kasFormModal').classList.remove('open'); },
-    calcKas(){ const masuk = parseFloat(document.getElementById('kasIn').value) || 0; const pctInput = parseFloat(document.getElementById('kasDevPctInput').value) || 0; const lain = parseFloat(document.getElementById('kasOutOther').value) || 0; const pengembangan = masuk * (pctInput / 100); const akhir = masuk - pengembangan - lain; document.getElementById('kasOutDev').value = this.fRp(pengembangan); document.getElementById('kasEndVal').value = this.fRp(akhir); const endValEl = document.getElementById('kasEndVal'); if(akhir < 0) { endValEl.classList.add('rugi'); } else { endValEl.classList.remove('rugi'); } },
-    saveKas(){ const desc = document.getElementById('kasDesc').value.trim(); if(!desc){this.toast('Keterangan wajib diisi!','er');return} const masuk = parseFloat(document.getElementById('kasIn').value) || 0; const pctInput = parseFloat(document.getElementById('kasDevPctInput').value) || 0; const lain = parseFloat(document.getElementById('kasOutOther').value) || 0; if(masuk === 0 && pctInput === 0 && lain === 0){this.toast('Isi nominal kas masuk atau keluar!','er');return} const pengembangan = masuk * (pctInput / 100); const akhir = masuk - pengembangan - lain; const record = { id: 'KAS-'+Date.now(), date: document.getElementById('kasDate').value || new Date().toISOString().slice(0,10), desc, kasMasuk: masuk, pengembangan, pctPengembangan: pctInput.toFixed(2), lainLain: lain, kasAkhir: akhir }; this.cashRecords.unshift(record); this.syncToSheet('create', 'cash', record); this.save(); this.closeKasForm(); this.renderKas(); this.toast('Catatan kas berhasil disimpan!', 'ok'); },
-    delKas(idx){ if(!confirm('Hapus catatan kas ini?')) return; const removed = this.cashRecords.splice(idx, 1)[0]; if(removed) this.syncToSheet('delete', 'cash', removed); this.save(); this.renderKas(); this.toast('Catatan dihapus', 'inf'); },
+    // 1. Render Buku Kas (Ambil Laba Bersih dari Omset)
+    renderKas(){
+        // Hitung Total Laba Bersih dari Omset Records
+        const totalLabaBersih = this.omsetRecords.reduce((s, r) => s + (r.labaBersih || 0), 0);
+        
+        // Hitung Total Kas Keluar yang sudah dicatat
+        const totalKasKeluar = this.cashRecords.reduce((s, k) => s + (k.amount || 0), 0);
+        
+        // Saldo Kas Saat Ini = Laba Bersih - Kas Keluar
+        const currentBalance = totalLabaBersih - totalKasKeluar;
+        
+        // Tampilkan ke UI
+        document.getElementById('kasTotalBalance').textContent = this.fRp(currentBalance);
+        
+        const l = document.getElementById('kasList');
+        if(!this.cashRecords.length){
+            l.innerHTML = '<div class="empty"><i class="fas fa-wallet"></i><p>Belum ada catatan kas keluar</p></div>';
+            return;
+        }
+        
+        // Urutkan berdasarkan tanggal terbaru
+        const sortedCash = [...this.cashRecords].sort((a,b) => new Date(b.date) - new Date(a.date));
+        
+        l.innerHTML = sortedCash.map(k => {
+            return `<div class="cust-card">
+                <div style="display:flex;justify-content:space-between;align-items:start">
+                    <div>
+                        <div style="font-weight:700;font-size:.9rem">${k.desc || 'Tanpa Keterangan'}</div>
+                        <div style="font-size:.75rem;color:var(--tx2);margin-top:2px">
+                            <i class="fas fa-calendar-day" style="margin-right:4px;font-size:.7rem"></i>
+                            ${new Date(k.date).toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})}
+                        </div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-weight:800;color:var(--err);font-size:1rem">- ${this.fRp(k.amount)}</div>
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:10px;padding-top:8px;border-top:1px solid var(--bd)">
+                    <button onclick="P.delKas('${k.id}')" style="padding:4px 10px;border-radius:6px;border:none;background:var(--err);cursor:pointer;color:#fff;font-size:.7rem"><i class="fas fa-trash"></i> Hapus</button>
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    // 2. Buka Form Kas Keluar
+    openKasForm(){
+        document.getElementById('kasId').value = '';
+        document.getElementById('kasDate').value = new Date().toISOString().slice(0,10);
+        document.getElementById('kasAmount').value = '';
+        document.getElementById('kasDesc').value = '';
+        document.getElementById('kasFormModal').classList.add('open');
+    },
     
+    // 3. Tutup Form Kas Keluar
+    closeKasForm(){ 
+        document.getElementById('kasFormModal').classList.remove('open'); 
+    },
+    
+    // 4. Simpan Data Kas Keluar
+    saveKas(){
+        const id = document.getElementById('kasId').value;
+        const date = document.getElementById('kasDate').value;
+        const amount = parseFloat(document.getElementById('kasAmount').value) || 0;
+        const desc = document.getElementById('kasDesc').value.trim();
+        
+        if(!date){ this.toast('Tanggal harus diisi!','er'); return; }
+        if(amount <= 0){ this.toast('Jumlah dana harus lebih dari 0!','er'); return; }
+        if(!desc){ this.toast('Keterangan wajib diisi!','er'); return; }
+        
+        if(id){ // Mode Edit (Jika ada fungsi edit)
+            const existing = this.cashRecords.find(k => k.id === id);
+            if(existing){
+                existing.date = date;
+                existing.amount = amount;
+                existing.desc = desc;
+                this.syncToSheet('update', 'cash', existing);
+            }
+        } else { // Mode Tambah Baru
+            const newKas = {
+                id: 'KAS-'+Date.now(),
+                date: date,
+                amount: amount,
+                desc: desc,
+                type: 'out'
+            };
+            this.cashRecords.push(newKas);
+            this.syncToSheet('create', 'cash', newKas);
+        }
+        
+        this.save();
+        this.closeKasForm();
+        this.renderKas();
+        this.toast('Catatan kas keluar disimpan!','ok');
+    },
+    
+    // 5. Hapus Kas Keluar
+    delKas(id){
+        if(!confirm('Hapus catatan kas ini?')) return;
+        this.cashRecords = this.cashRecords.filter(k => k.id !== id);
+        this.syncToSheet('delete', 'cash', {id:id});
+        this.save();
+        this.renderKas();
+        this.toast('Catatan kas dihapus','inf');
+    },    
     // INCASO (TAGIHAN SUPPLIER)
     renderIncaso(){ const debtors = this.incasoRecords.filter(i => i.status === 'Belum Lunas'); const totalDebt = debtors.reduce((sum, i) => sum + (parseFloat(i.total)||0), 0); document.getElementById('incasoTotalDebt').textContent = this.fRp(totalDebt); const l = document.getElementById('incasoList'); if(!this.incasoRecords.length){l.innerHTML='<div class="empty"><i class="fas fa-file-invoice-dollar"></i><p>Belum ada tagihan</p></div>';return} l.innerHTML = this.incasoRecords.map(i => { const isOverdue = new Date(i.dueDate) < new Date() && i.status === 'Belum Lunas'; const statusColor = i.status === 'Lunas' ? 'var(--ok)' : isOverdue ? 'var(--err)' : 'var(--acc)'; const statusText = i.status === 'Lunas' ? 'LUNAS' : isOverdue ? 'JATUH TEMPO!' : 'Belum Lunas'; return `<div class="cust-card" style="${isOverdue ? 'border-color:var(--err);border-width:2px' : ''}"><div style="display:flex;justify-content:space-between;align-items:start"><div><div style="font-weight:700;font-size:.95rem">${i.supplier}</div><div style="font-size:.75rem;color:var(--tx2)">ID: ${i.id}</div></div><div style="text-align:right"><div style="font-weight:800;color:var(--err);font-size:1.1rem">${this.fRp(i.total)}</div><div style="font-size:.7rem;font-weight:700;color:${statusColor}">${statusText}</div></div></div><div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--bd);align-items:center"><div style="font-size:.8rem;color:var(--tx2)">Jatuh Tempo: <span style="color:var(--tx);font-weight:600">${new Date(i.dueDate).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div><div style="display:flex;gap:8px">${i.status !== 'Lunas' ? `<button onclick="P.payIncaso('${i.id}')" class="btn-p" style="padding:6px 12px;font-size:.75rem"><i class="fas fa-check" style="margin-right:4px"></i>Lunasi</button>` : ''}<button onclick="P.delIncaso('${i.id}')" style="padding:6px 12px;border-radius:8px;border:none;background:var(--err);cursor:pointer;color:#fff;font-size:.75rem"><i class="fas fa-trash"></i></button></div></div></div>`; }).join(''); },
     openIncasoForm(){ const newId = this.generateAutoId(); document.getElementById('incId').value = newId; document.getElementById('incIdInput').value = newId; const sel = document.getElementById('incSupplier'); sel.innerHTML = '<option value="">-- Pilih Supplier --</option>' + this.suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join(''); document.getElementById('incSupplier').value=''; document.getElementById('incTotal').value=''; document.getElementById('incDueDate').value=''; document.getElementById('incasoFormModal').classList.add('open'); },
