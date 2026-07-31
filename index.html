@@ -1769,7 +1769,93 @@ openOmsetStat(){
     updPOPrice(){ const p=this.products.find(x=>x.id===this.addPOState.productId);if(!p)return; const cost=parseFloat(document.getElementById('addPOCost').value)||0; const qty=this.addPOState.qty; const total=cost*qty; document.getElementById('addPOPrice').textContent=this.fRp(total); document.getElementById('addPOPriceDet').textContent=qty+' × '+this.fRp(cost); },
     closeAddPO(){document.getElementById('addPOModal').classList.remove('open')},
     confirmAddPO(){ const p=this.products.find(x=>x.id===this.addPOState.productId);if(!p)return; const cost=parseFloat(document.getElementById('addPOCost').value)||0; const qty=this.addPOState.qty; this.poCart.push({cid:++this.poSeq, id:p.id, name:p.name, cost:cost, qty:qty, subtotal:cost*qty, unit:p.unit}); this.closeAddPO(); this.updPOCart(); this.renderPOGrid(); this.toast(p.name+' ditambahkan ke keranjang PO','ok'); },
-    updPOCart(){ const tot=this.poCart.reduce((s,c)=>s+c.subtotal,0); const cnt=this.poCart.reduce((s,c)=>s+c.qty,0); document.getElementById('fPOCnt').textContent=cnt+' item'; document.getElementById('fPOTot').textContent=this.fRp(tot); this.updFab(); const ci=document.getElementById('poCartItems'); if(!this.poCart.length){ci.innerHTML='<div class="empty"><i class="fas fa-dolly"></i><p>Keranjang PO kosong</p></div>';document.getElementById('poTot').textContent=this.fRp(0);return} ci.innerHTML=this.poCart.map(it=>'<div class="ci"><div class="ci-info"><div class="ci-name">'+it.name+'</div><div class="ci-price">'+it.qty+' '+it.unit+' @ '+this.fRp(it.cost)+'</div></div><div class="ci-sub" style="color:var(--acc)">'+this.fRp(it.subtotal)+'</div><div class="ci-del" onclick="P.rmPOCart('+it.cid+')"><i class="fas fa-trash"></i></div></div>').join(''); document.getElementById('poTot').textContent=this.fRp(tot); },
+        updPOCart(){ 
+        const tot=this.poCart.reduce((s,c)=>s+c.subtotal,0); 
+        const cnt=this.poCart.reduce((s,c)=>s+c.qty,0); 
+        document.getElementById('fPOCnt').textContent=cnt+' item'; 
+        document.getElementById('fPOTot').textContent=this.fRp(tot); 
+        this.updFab(); 
+        
+        const ci=document.getElementById('poCartItems'); 
+        
+        if(!this.poCart.length){
+            ci.innerHTML='<div class="empty"><i class="fas fa-dolly"></i><p>Keranjang PO kosong</p></div>';
+            document.getElementById('poTot').textContent=this.fRp(0);
+            return;
+        } 
+        
+        ci.innerHTML=this.poCart.map(it => `
+            <div class="ci" data-cid="${it.cid}">
+                <div class="ci-info">
+                    <div class="ci-name">${it.name}</div>
+                    <div class="ci-price" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                        <!-- Input Qty Manual -->
+                        <input type="number" value="${it.qty}" min="1" 
+                            style="width: 50px; padding:4px; border:1px solid var(--bd); border-radius:6px; text-align:center; font-weight:700;" 
+                            oninput="P.updatePOItem(${it.cid}, 'qty', this.value)">
+                        
+                        <span>${it.unit} @ Rp</span>
+                        
+                        <!-- Input Harga/Modal Manual -->
+                        <input type="number" value="${it.cost}" min="0" 
+                            style="width: 90px; padding:4px; border:1px solid var(--bd); border-radius:6px;" 
+                            oninput="P.updatePOItem(${it.cid}, 'cost', this.value)">
+                    </div>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:10px;">
+                    <div class="ci-sub" style="color:var(--acc)" id="poSubtotal-${it.cid}">${this.fRp(it.subtotal)}</div>
+                    
+                    <div style="display:flex; gap:12px;">
+                        <!-- Tombol Edit (Auto-focus ke Input Qty) -->
+                        <div onclick="P.focusEditPO(${it.cid})" style="color:var(--pri); cursor:pointer; font-size:1rem;" title="Edit Qty">
+                            <i class="fas fa-pen-to-square"></i>
+                        </div>
+                        <!-- Tombol Hapus -->
+                        <div class="ci-del" onclick="P.rmPOCart(${it.cid})" style="cursor:pointer; font-size:1rem;" title="Hapus Item">
+                            <i class="fas fa-trash"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join(''); 
+        
+        document.getElementById('poTot').textContent=this.fRp(tot); 
+    },
+        // Fungsi untuk menghitung ulang saat input diketik manual
+    updatePOItem(cid, type, value){
+        const it = this.poCart.find(c => c.cid === cid);
+        if(!it) return;
+        
+        let val = parseFloat(value) || 0;
+        if(val < 0) val = 0;
+        if(type === 'qty' && val < 1) val = 1; // Minimal qty 1
+        
+        if(type === 'qty') it.qty = val;
+        else if(type === 'cost') it.cost = val;
+        
+        it.subtotal = it.qty * it.cost;
+        
+        // Update teks subtotal item ini saja (agar tidak reload seluruh HTML)
+        const subEl = document.getElementById('poSubtotal-' + cid);
+        if(subEl) subEl.textContent = this.fRp(it.subtotal);
+        
+        // Hitung ulang Total keseluruhan di FAB dan di bawah Sheet
+        const tot = this.poCart.reduce((s,c)=>s+c.subtotal,0);
+        const cnt = this.poCart.reduce((s,c)=>s+c.qty,0);
+        document.getElementById('fPOCnt').textContent = cnt + ' item';
+        document.getElementById('fPOTot').textContent = this.fRp(tot);
+        document.getElementById('poTot').textContent = this.fRp(tot);
+    },
+
+    // Fungsi tombol edit (Fokus ke kolom input Qty)
+    focusEditPO(cid){
+        const qtyInput = document.querySelector(`.ci[data-cid="${cid}"] input[type="number"]`);
+        if(qtyInput) {
+            qtyInput.focus();
+            qtyInput.select(); // Blok teks agar langsung bisa ditimpa angka baru
+        }
+    },
     rmPOCart(cid){this.poCart=this.poCart.filter(c=>c.cid!==cid);this.updPOCart();this.renderPOGrid()},
     clearPOCart(){
         this.poCart=[];
