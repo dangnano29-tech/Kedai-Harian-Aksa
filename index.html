@@ -976,8 +976,19 @@ const P = {
     startClock(){const u=()=>{const n=new Date();
         document.getElementById('hClock').textContent=n.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
         document.getElementById('hDate').textContent=n.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})};u();setInterval(u,1000)},
-    fRp(n){return'Rp '+Math.round(n).toLocaleString('id-ID')},
-    fDt(iso){return new Date(iso).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})},
+fRp(n){
+    let num = Number(n);
+    if(isNaN(num)) {
+        if(typeof n === 'string') {
+            // Hilangkan "Rp", spasi, dan titik (pemisah ribuan) lalu jadikan angka
+            num = Number(n.replace(/[^0-9-]/g, ''));
+        } else {
+            num = 0;
+        }
+    }
+    return 'Rp ' + Math.round(num).toLocaleString('id-ID');
+},
+        fDt(iso){return new Date(iso).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})},
     genId(){return'TRX-'+Date.now()},
     
     generateAutoId(){
@@ -1983,11 +1994,8 @@ openOmsetStat(){
     // 1. Render Buku Kas (Ambil Laba Bersih dari Omset)
     renderKas(){
         // Hitung Total Laba Bersih dari Omset Records
-        const totalLabaBersih = this.omsetRecords.reduce((s, r) => s + (r.labaBersih || 0), 0);
-        
-        // Hitung Total Kas Keluar yang sudah dicatat
-        const totalKasKeluar = this.cashRecords.reduce((s, k) => s + (k.amount || 0), 0);
-        
+        const totalLabaBersih = this.omsetRecords.reduce((s, r) => s + (Number(r.labaBersih) || 0), 0);
+        const totalKasKeluar = this.cashRecords.reduce((s, k) => s + (Number(k.amount) || 0), 0);        
         // Saldo Kas Saat Ini = Laba Bersih - Kas Keluar
         const currentBalance = totalLabaBersih - totalKasKeluar;
         
