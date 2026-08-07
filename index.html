@@ -276,7 +276,16 @@
         <div id="hClock" style="font-size:.85rem;font-weight:700;opacity:.9"></div>
     </header>
 
-    <main class="app-main">
+            <!-- DASHBOARD -->
+        <div id="pg-dashboard" class="page active">
+            <div style="padding:16px 16px 6px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                <h2 style="font-size:1.2rem;font-weight:700">Dashboard</h2>
+                <button class="btn-o" style="padding:8px 14px; font-size:.8rem; display:flex; align-items:center; gap:6px;" onclick="P.manualSync()">
+                    <i class="fas fa-rotate"></i> Refresh Data
+                </button>
+            </div>
+            <div id="dbcont" style="flex:1;overflow-y:auto;padding:0 16px 80px"></div>
+        </div>
         <!-- DASHBOARD -->
         <div id="pg-dashboard" class="page active">
             <div style="padding:16px 16px 6px"><h2 style="font-size:1.2rem;font-weight:700">Dashboard</h2></div>
@@ -900,7 +909,22 @@ const P = {
         document.getElementById('pfUn')?.addEventListener('change',()=>this.updPfConv());
         window.addEventListener('afterprint', () => { const printArea = document.getElementById('reportPrintArea'); if(printArea) printArea.remove(); });
     },
-   
+       // 🚀 FUNGSI REFRESH MANUAL DARI DASHBOARD
+    async manualSync(){
+        this.toast('Sedang memuat data dari server...', 'inf');
+        try {
+            const success = await this.loadCloudData(true);
+            if(success){
+                this.renderDashboard();
+                this.toast('Data berhasil diperbarui!', 'ok');
+            } else {
+                this.toast('Gagal memuat data, periksa koneksi internet.', 'er');
+            }
+        } catch(e) {
+            console.error('Manual Sync Error:', e);
+            this.toast('Terjadi kesalahan saat sinkronisasi.', 'er');
+        }
+    },
     async loadData(){
         const url = this.settings.sheetUrl;
         let loadedFromCloud = false;
@@ -1484,39 +1508,46 @@ openOmsetStat(){
     closeOmsetStat(){ 
         document.getElementById('omsetStatModal').classList.remove('open'); 
     },
-    loadOmsetStat(){ 
+        loadOmsetStat(){ 
         try {
             if(!this.omsetRecords) this.omsetRecords = [];
             
-            // Ambil value dari input tanggal
-            const startDate = document.getElementById('statStart').value;
-            const endDate = document.getElementById('statEnd').value;
+            const startDateStr = document.getElementById('statStart').value;
+            const endDateStr = document.getElementById('statEnd').value;
             
-            // Filter data berdasarkan tanggal jika diisi
             let filtered = this.omsetRecords;
-            if(startDate) filtered = filtered.filter(r => r.date >= startDate);
-            if(endDate) filtered = filtered.filter(r => r.date <= endDate);
+            
+            // Tambahkan toleransi waktu agar hari terakhir ikut terbaca
+            if(startDateStr) {
+                const start = new Date(startDateStr);
+                start.setHours(0, 0, 0, 0);
+                filtered = filtered.filter(r => new Date(r.date) >= start);
+            }
+            if(endDateStr) {
+                const end = new Date(endDateStr);
+                end.setHours(23, 59, 59, 999); // Set jam sampai 23:59:59
+                filtered = filtered.filter(r => new Date(r.date) <= end);
+            }
             
             const count = filtered.length; 
             let totalOmset = 0, totalLK = 0, totalLB = 0, totalKembang = 0, totalLain = 0; 
 
             filtered.forEach(r => { 
-                totalOmset += r.omset || 0; 
-                totalLK += r.labaKotor || 0; 
-                totalLB += r.labaBersih || 0; 
-                totalKembang += r.totalKembang || 0; 
-                totalLain += r.lainLain || 0; 
+                totalOmset += Number(r.omset) || 0; 
+                totalLK += Number(r.labaKotor) || 0; 
+                totalLB += Number(r.labaBersih) || 0; 
+                totalKembang += Number(r.totalKembang) || 0; 
+                totalLain += Number(r.lainLain) || 0; 
             }); 
 
             const avgOmset = count > 0 ? totalOmset / count : 0; 
             const avgLK = count > 0 ? totalLK / count : 0; 
             const avgLB = count > 0 ? totalLB / count : 0; 
 
-            // Teks keterangan filter
             let filterText = "Semua Waktu";
-            if(startDate && endDate) filterText = `${startDate} s/d ${endDate}`;
-            else if(startDate) filterText = `Mulai ${startDate}`;
-            else if(endDate) filterText = `Sampai ${endDate}`;
+            if(startDateStr && endDateStr) filterText = `${startDateStr} s/d ${endDateStr}`;
+            else if(startDateStr) filterText = `Mulai ${startDateStr}`;
+            else if(endDateStr) filterText = `Sampai ${endDateStr}`;
 
             const body = document.getElementById('omsetStatBody'); 
             if(!body) { this.toast('Elemen body modal statistik tidak ditemukan', 'er'); return; }
@@ -1541,6 +1572,12 @@ openOmsetStat(){
                     </div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:12px; border-top:1px solid var(--bd); padding-top:16px;">
+                    
+                    <div style="display:flex; justify-content:space-between; font-size:1rem; align-items:center; background:rgba(10,104,71,.08); padding:10px 12px; border-radius:10px;">
+                        <span style="font-weight:700; color:var(--tx)"><i class="fas fa-sack-dollar" style="margin-right:6px; color:var(--pri)"></i>Total Omset</span>
+                        <span style="font-weight:800; color:var(--pri)">${this.fRp(totalOmset)}</span>
+                    </div>
+
                     <div style="display:flex; justify-content:space-between; font-size:.9rem; align-items:center">
                         <span style="color:var(--tx2)"><i class="fas fa-seedling" style="margin-right:6px; color:var(--acc)"></i>Total Pengembangan</span>
                         <span style="font-weight:700;color:var(--acc)">${this.fRp(totalKembang)}</span>
@@ -1992,14 +2029,21 @@ openOmsetStat(){
 
     // BUKU KAS
     // 1. Render Buku Kas (Ambil Laba Bersih dari Omset)
-    renderKas(){
-        // Hitung Total Laba Bersih dari Omset Records
-        const totalLabaBersih = this.omsetRecords.reduce((s, r) => s + (Number(r.labaBersih) || 0), 0);
-        const totalKasKeluar = this.cashRecords.reduce((s, k) => s + (Number(k.amount) || 0), 0);        
-        // Saldo Kas Saat Ini = Laba Bersih - Kas Keluar
+            renderKas(){
+        // Hitung Total Laba Bersih dari Omset
+        const totalLabaBersih = this.omsetRecords.reduce((s, r) => {
+            let val = Number(r.labaBersih);
+            return s + (isNaN(val) ? 0 : val);
+        }, 0);
+        
+        // Hitung Total Kas Keluar (membaca kolom 'jumlah')
+        const totalKasKeluar = this.cashRecords.reduce((s, k) => {
+            let val = Number(k.jumlah);
+            return s + (isNaN(val) ? 0 : val);
+        }, 0);
+        
         const currentBalance = totalLabaBersih - totalKasKeluar;
         
-        // Tampilkan ke UI
         document.getElementById('kasTotalBalance').textContent = this.fRp(currentBalance);
         
         const l = document.getElementById('kasList');
@@ -2009,20 +2053,21 @@ openOmsetStat(){
         }
         
         // Urutkan berdasarkan tanggal terbaru
-        const sortedCash = [...this.cashRecords].sort((a,b) => new Date(b.date) - new Date(a.date));
+        const sortedCash = [...this.cashRecords].sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
         
         l.innerHTML = sortedCash.map(k => {
+            let outAmount = Number(k.jumlah) || 0;
             return `<div class="cust-card">
                 <div style="display:flex;justify-content:space-between;align-items:start">
                     <div>
-                        <div style="font-weight:700;font-size:.9rem">${k.desc || 'Tanpa Keterangan'}</div>
+                        <div style="font-weight:700;font-size:.9rem">${k.keterangan || 'Tanpa Keterangan'}</div>
                         <div style="font-size:.75rem;color:var(--tx2);margin-top:2px">
                             <i class="fas fa-calendar-day" style="margin-right:4px;font-size:.7rem"></i>
-                            ${new Date(k.date).toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})}
+                            ${new Date(k.tanggal).toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})}
                         </div>
                     </div>
                     <div style="text-align:right">
-                        <div style="font-weight:800;color:var(--err);font-size:1rem">- ${this.fRp(k.amount)}</div>
+                        <div style="font-weight:800;color:var(--err);font-size:1rem">- ${this.fRp(outAmount)}</div>
                     </div>
                 </div>
                 <div style="display:flex;justify-content:flex-end;margin-top:10px;padding-top:8px;border-top:1px solid var(--bd)">
@@ -2031,7 +2076,6 @@ openOmsetStat(){
             </div>`;
         }).join('');
     },
-
     // 2. Buka Form Kas Keluar
     openKasForm(){
         document.getElementById('kasId').value = '';
@@ -2047,44 +2091,44 @@ openOmsetStat(){
     },
     
     // 4. Simpan Data Kas Keluar
-    saveKas(){
+        saveKas(){
         const id = document.getElementById('kasId').value;
-        const date = document.getElementById('kasDate').value;
-        const amount = parseFloat(document.getElementById('kasAmount').value) || 0;
-        const desc = document.getElementById('kasDesc').value.trim();
+        const tanggal = document.getElementById('kasDate').value;
+        const jumlah = parseFloat(document.getElementById('kasAmount').value) || 0;
+        const keterangan = document.getElementById('kasDesc').value.trim();
         
-        if(!date){ this.toast('Tanggal harus diisi!','er'); return; }
-        if(amount <= 0){ this.toast('Jumlah dana harus lebih dari 0!','er'); return; }
-        if(!desc){ this.toast('Keterangan wajib diisi!','er'); return; }
+        if(!tanggal){ this.toast('Tanggal harus diisi!','er'); return; }
+        if(jumlah <= 0){ this.toast('Jumlah dana harus lebih dari 0!','er'); return; }
+        if(!keterangan){ this.toast('Keterangan wajib diisi!','er'); return; }
         
-        if(id){ // Mode Edit (Jika ada fungsi edit)
+        if(id){ 
+            // Mode Edit
             const existing = this.cashRecords.find(k => k.id === id);
             if(existing){
-                existing.date = date;
-                existing.amount = amount;
-                existing.desc = desc;
+                existing.tanggal = tanggal;
+                existing.keterangan = keterangan;
+                existing.jumlah = jumlah;
                 this.syncToSheet('update', 'cash', existing);
             }
-        } else { // Mode Tambah Baru
+        } else { 
+            // Mode Tambah Baru
             const newKas = {
                 id: 'KAS-'+Date.now(),
-                date: date,
-                amount: amount,
-                desc: desc,
-                type: 'out'
+                tanggal: tanggal,
+                keterangan: keterangan,
+                jumlah: jumlah
             };
             this.cashRecords.push(newKas);
             this.syncToSheet('create', 'cash', newKas);
         }
         
-        this.save();
+        this.save(); // Simpan ke localStorage
         this.closeKasForm();
         this.renderKas();
         this.toast('Catatan kas keluar disimpan!','ok');
     },
-    
     // 5. Hapus Kas Keluar
-    delKas(id){
+        delKas(id){
         if(!confirm('Hapus catatan kas ini?')) return;
         this.cashRecords = this.cashRecords.filter(k => k.id !== id);
         this.syncToSheet('delete', 'cash', {id:id});
