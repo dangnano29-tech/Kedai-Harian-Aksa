@@ -276,16 +276,7 @@
         <div id="hClock" style="font-size:.85rem;font-weight:700;opacity:.9"></div>
     </header>
 
-            <!-- DASHBOARD -->
-        <div id="pg-dashboard" class="page active">
-            <div style="padding:16px 16px 6px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                <h2 style="font-size:1.2rem;font-weight:700">Dashboard</h2>
-                <button class="btn-o" style="padding:8px 14px; font-size:.8rem; display:flex; align-items:center; gap:6px;" onclick="P.manualSync()">
-                    <i class="fas fa-rotate"></i> Refresh Data
-                </button>
-            </div>
-            <div id="dbcont" style="flex:1;overflow-y:auto;padding:0 16px 80px"></div>
-        </div>
+    <main class="app-main">
         <!-- DASHBOARD -->
         <div id="pg-dashboard" class="page active">
             <div style="padding:16px 16px 6px"><h2 style="font-size:1.2rem;font-weight:700">Dashboard</h2></div>
@@ -909,22 +900,7 @@ const P = {
         document.getElementById('pfUn')?.addEventListener('change',()=>this.updPfConv());
         window.addEventListener('afterprint', () => { const printArea = document.getElementById('reportPrintArea'); if(printArea) printArea.remove(); });
     },
-       // 🚀 FUNGSI REFRESH MANUAL DARI DASHBOARD
-    async manualSync(){
-        this.toast('Sedang memuat data dari server...', 'inf');
-        try {
-            const success = await this.loadCloudData(true);
-            if(success){
-                this.renderDashboard();
-                this.toast('Data berhasil diperbarui!', 'ok');
-            } else {
-                this.toast('Gagal memuat data, periksa koneksi internet.', 'er');
-            }
-        } catch(e) {
-            console.error('Manual Sync Error:', e);
-            this.toast('Terjadi kesalahan saat sinkronisasi.', 'er');
-        }
-    },
+   
     async loadData(){
         const url = this.settings.sheetUrl;
         let loadedFromCloud = false;
